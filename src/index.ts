@@ -11,8 +11,15 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+// export default {
+// 	async fetch(request, env, ctx): Promise<Response> {
+// 		return new Response('Hello World!');
+// 	},
+// } satisfies ExportedHandler<Env>;
+import { taskRouter } from './routes/tasks';
+
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		return new Response('Hello World!');
+	async fetch(request: Request, env: any): Promise<Response> {
+		return taskRouter.handle(request, env);
 	},
-} satisfies ExportedHandler<Env>;
+};
