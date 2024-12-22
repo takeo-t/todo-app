@@ -1,27 +1,17 @@
 import { Router } from 'itty-router';
 
-export const taskRouter = Router();
+const taskRouter = Router();
 
-taskRouter.get('/api/tasks', async (request, env) => {
-	const { results } = await env.DB.prepare('SELECT * FROM todos').all();
-	return new Response(JSON.stringify(results), {
+taskRouter.get('/api/tasks', () => {
+	console.log('GET /api/tasks handler entered');
+	return new Response(JSON.stringify({ message: 'Test response' }), {
 		headers: { 'content-type': 'application/json' },
 	});
 });
 
-taskRouter.post('/api/tasks', async (request, env) => {
-	const { title } = (await request.json()) as { title: string };
-	await env.DB.prepare('INSERT INTO todos (title, completed) VALUES (?, ?)').bind(title, false).run();
-	return new Response('Task created', { status: 201 });
-});
-
-taskRouter.all('*', async () => new Response('Not found', { status: 404 }));
-
 export default {
-	async fetch(request: any, env: any) {
-		return taskRouter
-			.handle(request, env)
-			.then((response: any) => response || new Response('Not found', { status: 404 }))
-			.catch((error: { stack: any }) => new Response(error.stack || error, { status: 500 }));
+	async fetch(request: Request): Promise<Response> {
+		console.log('Fetch handler triggered');
+		return taskRouter.handle(request);
 	},
 };

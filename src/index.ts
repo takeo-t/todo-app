@@ -1,65 +1,59 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.toml`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { Router, Method } from 'tiny-request-router';
 
-// export default {
-// 	async fetch(request, env, ctx): Promise<Response> {
-// 		return new Response('Hello World!');
-// 	},
-// } satisfies ExportedHandler<Env>;
-import { taskRouter } from './routes/tasks';
+// const router = new Router();
+const router = new Router();
 
-interface Env {
-	DB: any;
-}
+// ルート設定
+// GETエンドポイント
+// router.get('/api/tasks', (request: any) => {
+// 	console.log('GET /api/tasks handler entered');
+// 	return new Response(JSON.stringify({ message: 'Tiny router test response' }), {
+// 		headers: { 'content-type': 'application/json' },
+// 	});
+// });
+// GETエンドポイント
+router.get('/api/tasks', async (request: Request, env: any) => {
+	console.log('GET /api/tasks handler entered');
+	console.log('env keys:', Object.keys(env)); // `env` に含まれるキー一覧を確認
+	console.log('env.DB:', env.DB);
+	console.log('env:', JSON.stringify(env, null, 2)); // 環境変数を全て出力
 
-// export default {
-// 	async fetch(request: Request, env: Env): Promise<Response> {
-// 		console.log('Fetch handler triggered');
-// 		try {
-// 			const response = await taskRouter.handle(request, env);
-// 			if (response) {
-// 				console.log('Response found');
-// 				return response;
-// 			} else {
-// 				console.log('Response not found, returning 404');
-// 				return new Response('Not Found', { status: 404 });
-// 			}
-// 		} catch (error: any) {
-// 			console.error('Error occurred:', error);
-// 			return new Response(`Error: ${error.message}`, { status: 500 });
-// 		}
-// 	},
-// };
-// src/index.ts
+	if (!env.DB) {
+		console.error('Database binding "DB" is undefined.');
+		return new Response('Database binding "DB" is undefined.', { status: 500 });
+	}
+
+	try {
+		const { results } = await env.DB.prepare('SELECT * FROM todos').all();
+		console.log('Fetched tasks:', results);
+		return new Response(JSON.stringify(results), { headers: { 'content-type': 'application/json' } });
+	} catch (error) {
+		console.error('Error fetching tasks:', error);
+		return new Response('Failed to fetch tasks', { status: 500 });
+	}
+});
+
+// POSTエンドポイント
+router.post('/api/tasks', async (request: any) => {
+	console.log('POST /api/tasks handler entered');
+	const { title } = await request.json();
+	console.log('Received data:', title);
+	return new Response('Task created', { status: 201 });
+});
+
+// デフォルトハンドラー
+router.all('*', (request: any) => {
+	console.log('No matching route');
+	return new Response('Route not found', { status: 404 });
+});
+
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
-		console.log('Fetch handler triggered');
-		try {
-			// データベース接続テスト
-			const testResult = await env.DB.prepare('SELECT 1').first();
-			console.log('Database connection test result:', testResult);
-
-			const response = await taskRouter.handle(request, env);
-			if (response) {
-				console.log('Response found:', response.status);
-				return response;
-			} else {
-				console.log('Response not found, returning 404');
-				return new Response('Not Found', { status: 404 });
-			}
-		} catch (error: any) {
-			console.error('Error occurred:', error);
-			return new Response(`Error: ${error.message}`, { status: 500 });
+	async fetch(request: Request): Promise<Response> {
+		console.log('Tiny-router handler triggered');
+		const match = router.match(request.method as Method, new URL(request.url).pathname);
+		if (match) {
+			return match.handler(request, match.params);
 		}
+		return new Response('Route not found', { status: 404 });
 	},
 };
